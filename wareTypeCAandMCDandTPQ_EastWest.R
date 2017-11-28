@@ -42,9 +42,9 @@ wareTypeDataX<-dbGetQuery(DRCcon,'
                     "public"."tblCeramicWare"."EndDate",
                     "public"."tblContextFeatureType"."FeatureType",
                     "public"."tblCeramicGenre"."CeramicGenre",
-                    "public"."tblContext"."ContextID",
                     "public"."tblContext"."ProjectID",
                     "public"."tblContext"."Context",
+                    "public"."tblContext"."QuadratID",
                     "public"."tblContextDepositType"."DepositType",
                     "public"."tblContext"."DAACSStratigraphicGroup",
                     "public"."tblContext"."FeatureNumber"
@@ -141,9 +141,9 @@ MCDTypeTable<-within(MCDTypeTable, {     # Notice that multiple vars can be chan
 })
 
 # let's see what we have for ware types and counts
-require(plyr)
-summary2<-ddply(wareTypeData, .(Ware), summarise, Count=sum(Quantity))
-summary2
+# require(plyr)
+# summary2<-ddply(wareTypeData, .(Ware), summarise, Count=sum(Quantity))
+# summary2
 
 # Now we do some ware type recoding if necessary
 # For example if "American Stoneware" is William Rogers, we might recode it as "Fulham Type"
@@ -152,41 +152,56 @@ summary2
 
 # get rid of types with no dates
 typesWithNoDates <- MCDTypeTable$Ware[(is.na(MCDTypeTable$midPoint))]
-wareTypeData1<- wareTypeData[!wareTypeData$Ware %in%  typesWithNoDates,]
+wareTypeDataY<- wareTypeData[!wareTypeData$Ware %in%  typesWithNoDates,]
 
 # what is left?
-summary3<-ddply(wareTypeData1, .(Ware), summarise, Count=sum(Quantity))
-summary3
+# summary3<-ddply(wareTypeData1, .(Ware), summarise, Count=sum(Quantity))
+# summary3
 
 ###Section 3: Create Counting Unit ########################################
 #Create a new variable called 'unit', this will make it easier to 
 #change the counting unit (context, SG, feature)in future analyses   
-wareTypeData1$unitX<- NULL
 
 #Make the units context if you do not have identifiable SGs or features
 #wareTypeData1$unit<-wareTypeData1$Context
 
 #Replace blanks in SG and Feature Number to NA
-wareTypeData1$DAACSStratigraphicGroup[wareTypeData1$DAACSStratigraphicGroup==""] <- NA
-wareTypeData1$FeatureNumber[wareTypeData1$FeatureNumber==""] <- NA
+wareTypeDataY$DAACSStratigraphicGroup[is.na(wareTypeDataY$DAACSStratigraphicGroup)] <- ''
+wareTypeDataY$FeatureNumber[is.na(wareTypeDataY$FeatureNumber)] <- ''
+wareTypeDataY$QuadratID[is.na(wareTypeDataY$QuadratID)] <- ''
+
+require(dplyr)
+
+wareTypeData1 <- mutate(wareTypeDataY, unit=ifelse((QuadratID == '' & FeatureNumber == '' & DAACSStratigraphicGroup == ''),
+                                    paste(ProjectID,Context),
+                                    ifelse((QuadratID != '' & FeatureNumber == '' & DAACSStratigraphicGroup == ''),
+                                           paste(ProjectID,'Q',QuadratID,Context),
+                                           ifelse((QuadratID == '' & FeatureNumber != '' & DAACSStratigraphicGroup == ''),
+                                                  paste(ProjectID,Context,'F',FeatureNumber),
+                                                  ifelse((QuadratID != '' & FeatureNumber == '' & DAACSStratigraphicGroup != ''),
+                                                         paste(ProjectID,'Q',QuadratID,DAACSStratigraphicGroup),
+                                                         ifelse((QuadratID == '' & FeatureNumber != '' & DAACSStratigraphicGroup != ''),
+                                                                paste(ProjectID,'F',FeatureNumber,DAACSStratigraphicGroup),
+                                                                paste(ProjectID,Context)
+                                                         ))))))
 
 
 #If you want to run the CA by SGs, features and remaining contexts, use this unit creation code
 #if no feature, then use the strat group, if no strat group then use context
 #
-wareTypeData1$unitX<-ifelse(is.na(wareTypeData1$FeatureNumber),
-                           ifelse(is.na(wareTypeData1$DAACSStratigraphicGroup),
-                                  wareTypeData1$Context,
-                                  wareTypeData1$DAACSStratigraphicGroup),
-                           wareTypeData1$FeatureNumber)
+# wareTypeData1$unitX<-ifelse(is.na(wareTypeData1$FeatureNumber),
+#                            ifelse(is.na(wareTypeData1$DAACSStratigraphicGroup),
+#                                   wareTypeData1$Context,
+#                                   wareTypeData1$DAACSStratigraphicGroup),
+#                            wareTypeData1$FeatureNumber)
 
-wareTypeData1$name <- wareTypeData1$ProjectID
-
-wareTypeData1$name[wareTypeData1$name=="1412"] <- 'WC'
-wareTypeData1$name[wareTypeData1$name=="1410"] <- 'EC'
-
-#Add projectID to unit
-wareTypeData1$unit <- paste(wareTypeData1$name, wareTypeData1$unitX, sep='_')
+# wareTypeData1$name <- wareTypeData1$ProjectID
+# 
+# wareTypeData1$name[wareTypeData1$name=="1412"] <- 'WC'
+# wareTypeData1$name[wareTypeData1$name=="1410"] <- 'EC'
+# 
+# #Add projectID to unit
+# wareTypeData1$unit <- paste(wareTypeData1$name, wareTypeData1$unitX, sep='_')
 #wareTypeData1$unit <- paste(wareTypeData1$ProjectID, wareTypeData1$unitX, sep='_')
 
 #Combine certain SGs (1,2, and 3) across the two projects
@@ -199,7 +214,7 @@ wareTypeData1$unit <- paste(wareTypeData1$name, wareTypeData1$unitX, sep='_')
 
 ###Section 4: Remove Ware Outliers ########################################
 #Remove outlier ware types
-wareTypeData2<- subset(wareTypeData1, ! wareTypeData1$Ware  %in%  c('Jasperware Type'))
+#wareTypeData2<- subset(wareTypeData1, ! wareTypeData1$Ware  %in%  c('Jasperware Type'))
 
 # what is left?
 #summary4<-ddply(wareTypeData1, .(Ware), summarise, Count=sum(Quantity))
@@ -207,8 +222,8 @@ wareTypeData2<- subset(wareTypeData1, ! wareTypeData1$Ware  %in%  c('Jasperware 
 
 # lets get a data frame with contexts as rows and type as cols, with the
 # entries as counts
-WareByUnit <- ddply(wareTypeData2, .(unit, Ware), summarise, Count=sum(Quantity))
-#WareByUnit <- ddply(wareTypeData1, .(unit, Ware), summarise, Count=sum(Quantity))
+#WareByUnit <- ddply(wareTypeData2, .(unit, Ware), summarise, Count=sum(Quantity))
+WareByUnit <- ddply(wareTypeData1, .(unit, Ware), summarise, Count=sum(Quantity))
 
 ###Section 5: Remove Context Outliers ########################################
 
@@ -379,65 +394,65 @@ colscores <- data.frame(ca3$colcoord[,1], ca3$colcoord[,2])
 colnames(colscores) <- c("Dim1", "Dim2")
 
 #Create plot: Dim 1 and Dim 2 context scores
-require(ggplot2)
-library(ggrepel)
-p1 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=rowscores$Dim2))+
-  geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
- geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
-  xlim(-7,3)+
- #geom_text_repel(aes(label=rownames(rowscores)), cex=6) +
-  theme_classic()+
-  labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
-  theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-        axis.text=element_text(size=rel(1.5)))
-p1
-#save the plot for website chronology page/presentations
-#ggsave("WCAwares_EastWest_Dims12.png", p1, width=10, height=7.5, dpi=300)
-
-
-# plot the row scores on dim1 and dim2
-#plot(ca3$rowcoord[,1], ca3$rowcoord[,2], pch=21, bg="black", cex=1.25,
- #    xlab="Dimension 1", ylab="Dimension 2", cex.lab=1.25, cex.axis=1.25)
-#text(ca3$rowcoord[,1],ca3$rowcoord[,2],rownames(ca3$rowcoord),
- #    pos=4, cex=1.0, col="black", cex.lab=1.5)
-
-p2 <- ggplot(colscores, aes(x=colscores$Dim1,y=colscores$Dim2))+
-  geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
-  #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
-  geom_text_repel(aes(label=rownames(colscores)), cex=6) +
-  theme_classic()+
-  labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
-  theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-        axis.text=element_text(size=rel(1.5)))
-p2
-#ggsave("CAwares_EastWest_DimWares.png", p2, width=10, height=7.5, dpi=300)
-
-# plot the col scores on dim1 and dim2, which types are important in which regions of the plot
-#plot(ca3$colcoord[,1],ca3$colcoord[,2],pch=21, bg="black",cex=1.25,
- #    xlab="Dimension 1", ylab="Dimension 2", asp=1, cex.lab=1.25, cex.axis=1.25)
-#text(ca3$colcoord[,1],ca3$colcoord[,2],rownames(ca3$colcoord),
- #    pos=4 ,cex=1.25, col="black")
-
-# CA Dim 1 vs. MCDs
-p3 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=MCDByUnit$MCDs$blueMCD))+
-  geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
- geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
- #geom_text_repel(aes(label=rownames(rowscores)), cex=6) +
-  theme_classic()+
-  labs(title="East and West Cabin", x="Dimension 1", y="BLUE MCD")+
-  theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-        axis.text=element_text(size=rel(1.5)))
-p3
-cor.test(ca3$rowcoord[,1],MCDByUnit$MCDs$blueMCD, method="kendall")
-#ggsave("CAwares_EastWest_Dim1MCD.png", p3, width=10, height=7.5, dpi=300)
-
-#OLD DIM 1 BLUE MCD PLOT
-#plot(ca3$rowcoord[,1], MCDByUnit$MCDs$blueMCD, pch=21, bg="black",cex=1.25,
-#xlab="Dimension 1", ylab="BLUE MCD",cex.lab=1.5, cex.axis=1.5)
-#text(ca3$rowcoord[,1],MCDByUnit$MCDs$blueMCD,rownames(ca3$rowcoord),
-#pos=4, cex=1.25, col="black")
-#abline(v=-5, lty=1, col="grey")
-#abline(v=-3, lty=1, col="grey")
+# require(ggplot2)
+# library(ggrepel)
+# p1 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=rowscores$Dim2))+
+#   geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
+#  #geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
+#   xlim(-7,3)+
+#  geom_text_repel(aes(label=rownames(rowscores)), cex=5, segment.alpha=0.2) +
+#   theme_classic()+
+#   labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
+#   theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+#         axis.text=element_text(size=rel(1.5)))
+# p1
+# #save the plot for website chronology page/presentations
+# #ggsave("WCAwares_EastWest_Dims12.png", p1, width=10, height=7.5, dpi=300)
+# 
+# 
+# # plot the row scores on dim1 and dim2
+# #plot(ca3$rowcoord[,1], ca3$rowcoord[,2], pch=21, bg="black", cex=1.25,
+#  #    xlab="Dimension 1", ylab="Dimension 2", cex.lab=1.25, cex.axis=1.25)
+# #text(ca3$rowcoord[,1],ca3$rowcoord[,2],rownames(ca3$rowcoord),
+#  #    pos=4, cex=1.0, col="black", cex.lab=1.5)
+# 
+# p2 <- ggplot(colscores, aes(x=colscores$Dim1,y=colscores$Dim2))+
+#   geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
+#   #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
+#   geom_text_repel(aes(label=rownames(colscores)), cex=6) +
+#   theme_classic()+
+#   labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
+#   theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+#         axis.text=element_text(size=rel(1.5)))
+# p2
+# #ggsave("CAwares_EastWest_DimWares.png", p2, width=10, height=7.5, dpi=300)
+# 
+# # plot the col scores on dim1 and dim2, which types are important in which regions of the plot
+# #plot(ca3$colcoord[,1],ca3$colcoord[,2],pch=21, bg="black",cex=1.25,
+#  #    xlab="Dimension 1", ylab="Dimension 2", asp=1, cex.lab=1.25, cex.axis=1.25)
+# #text(ca3$colcoord[,1],ca3$colcoord[,2],rownames(ca3$colcoord),
+#  #    pos=4 ,cex=1.25, col="black")
+# 
+# # CA Dim 1 vs. MCDs
+# p3 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=MCDByUnit$MCDs$blueMCD))+
+#   geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
+#  geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
+#  #geom_text_repel(aes(label=rownames(rowscores)), cex=6) +
+#   theme_classic()+
+#   labs(title="East and West Cabin", x="Dimension 1", y="BLUE MCD")+
+#   theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+#         axis.text=element_text(size=rel(1.5)))
+# p3
+# cor.test(ca3$rowcoord[,1],MCDByUnit$MCDs$blueMCD, method="kendall")
+# #ggsave("CAwares_EastWest_Dim1MCD.png", p3, width=10, height=7.5, dpi=300)
+# 
+# #OLD DIM 1 BLUE MCD PLOT
+# #plot(ca3$rowcoord[,1], MCDByUnit$MCDs$blueMCD, pch=21, bg="black",cex=1.25,
+# #xlab="Dimension 1", ylab="BLUE MCD",cex.lab=1.5, cex.axis=1.5)
+# #text(ca3$rowcoord[,1],MCDByUnit$MCDs$blueMCD,rownames(ca3$rowcoord),
+# #pos=4, cex=1.25, col="black")
+# #abline(v=-5, lty=1, col="grey")
+# #abline(v=-3, lty=1, col="grey")
 
 
 #create table of contexts, counts, and mcds, need to read in unit as character
@@ -459,27 +474,27 @@ CA_MCD$Cabin[grepl("^.*EC_", CA_MCD$Cabin)] <- 'EC'
 CA_MCD$Cabin[grepl("^.*WC_", CA_MCD$Cabin)] <- 'WC'
 
 
-#Dim 1 bluemcd with colors by cabin
-color <- ggplot(rowscores, aes(x=CA_MCD$dim1Scores,y=CA_MCD$blueMCD))+
-  geom_point(aes(colour=CA_MCD$Cabin),size=5)+
-  #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
-  geom_text_repel(aes(label=rownames(rowscores)), cex=5, segment.alpha=0.2) +
-  theme_classic()+
-  labs(title="East and West", x="Dimension 1", y="BLUE MCD")+
-  theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-        axis.text=element_text(size=rel(1.5)), legend.text=element_text(size=rel(1.75)),
-        legend.title=element_text(size=rel(1.5)), legend.position="bottom")+
-  scale_colour_manual(name="Cabin",
-                      labels=c("East", "West"),
-                      values=c("darkgoldenrod1", "aquamarine4"))
-color
-ggsave("CAwares_EastWest_D1BMCD_labels.png", color, width=10, height=7.5, dpi=300)
-
-#Create weighted histogram for phasing
-#library(plotrix)
-#Compares counts of sherds in all units with BLUE MCDs that fall within bin, you may need to change sequence dates
-#weighted.hist(MCDByUnit$MCDs$blueMCD, MCDByUnit$MCDs$Count, breaks=seq(1790,1930,10), col='lightblue')
-
+# #Dim 1 bluemcd with colors by cabin
+# color <- ggplot(rowscores, aes(x=CA_MCD$dim1Scores,y=CA_MCD$blueMCD))+
+#   geom_point(aes(colour=CA_MCD$Cabin),size=5)+
+#   #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
+#   geom_text_repel(aes(label=rownames(rowscores)), cex=5, segment.alpha=0.2) +
+#   theme_classic()+
+#   labs(title="East and West", x="Dimension 1", y="BLUE MCD")+
+#   theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+#         axis.text=element_text(size=rel(1.5)), legend.text=element_text(size=rel(1.75)),
+#         legend.title=element_text(size=rel(1.5)), legend.position="bottom")+
+#   scale_colour_manual(name="Cabin",
+#                       labels=c("East", "West"),
+#                       values=c("darkgoldenrod1", "aquamarine4"))
+# color
+# ggsave("CAwares_EastWest_D1BMCD_labels.png", color, width=10, height=7.5, dpi=300)
+# 
+# #Create weighted histogram for phasing
+# #library(plotrix)
+# #Compares counts of sherds in all units with BLUE MCDs that fall within bin, you may need to change sequence dates
+# #weighted.hist(MCDByUnit$MCDs$blueMCD, MCDByUnit$MCDs$Count, breaks=seq(1790,1930,10), col='lightblue')
+# 
 #Dim 1 Scores Weighted Histogram, you may need to change scale
 p5 <- ggplot(CA_MCD, aes(x=CA_MCD$dim1Scores, weight=CA_MCD$count/sum(CA_MCD$count)))+
   geom_histogram(aes(y=..density..), colour="gray", fill="tan", binwidth=0.1, boundary=0.5)+
@@ -491,27 +506,32 @@ p5 <- ggplot(CA_MCD, aes(x=CA_MCD$dim1Scores, weight=CA_MCD$count/sum(CA_MCD$cou
   theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
         axis.text=element_text(size=rel(1.5)))#+
 #geom_density(fill=NA)
-p5a <- p5 + geom_vline(xintercept=c(-5.8, -4, -2.5, 0.5))
+p5a <- p5 + geom_vline(xintercept=c(-5.8, -4, -2.5, 0.6))
 p5a
-#ggsave("CAwares_EastWest_Hist.png", p5, width=10, height=7.5, dpi=300)
-#ggsave("CAwares_EastWest_Hist_lines.png", p5a, width=10, height=7.5, dpi=300)
-
-#Lines step adds density curve to weighted histogram
-#hist(rep(ca3$rowcoord[,1], MCDByUnit$MCDs$Count),col='tan',border='grey', breaks=seq(-7.5,2.5,.1),
- #    main='East & West Cabin',
-  #   xlab="Dimension 1 Scores",
-   #  freq=F, cex.lab=1.5, cex.axis=1.5, cex.main=1.5)
-#lines(density(ca3$rowcoord[,1], weights=MCDByUnit$MCDs$Count/sum(MCDByUnit$MCDs$Count)), 
- #     lwd=2)
-#abline(v=-5, lty=1, col="grey")
-#abline(v=-3, lty=1, col="grey")
+ggsave("CAwares_EastWest_Hist.png", p5, width=10, height=7.5, dpi=300)
+ggsave("CAwares_EastWest_Hist_lines.png", p5a, width=10, height=7.5, dpi=300)
+# 
+# #Lines step adds density curve to weighted histogram
+# #hist(rep(ca3$rowcoord[,1], MCDByUnit$MCDs$Count),col='tan',border='grey', breaks=seq(-7.5,2.5,.1),
+#  #    main='East & West Cabin',
+#   #   xlab="Dimension 1 Scores",
+#    #  freq=F, cex.lab=1.5, cex.axis=1.5, cex.main=1.5)
+# #lines(density(ca3$rowcoord[,1], weights=MCDByUnit$MCDs$Count/sum(MCDByUnit$MCDs$Count)), 
+#  #     lwd=2)
+# #abline(v=-5, lty=1, col="grey")
+# #abline(v=-3, lty=1, col="grey")
 
 # create a vector for the phases with as many entries as assemblages
 Phase <- rep(NA, length(ca3$rowcoord[,1])) 
 
 # do the phase assigments
-Phase[(ca3$rowcoord[,1] >= -2.5 )] <- NA
-Phase[(ca3$rowcoord[,1] < -2.5)] <- 'P01'
+Phase[(ca3$rowcoord[,1] <= -5.8 )] <- 'P01'
+Phase[(ca3$rowcoord[,1] > -5.8) & (ca3$rowcoord[,1]) <= -4] <- 'P02'
+Phase[(ca3$rowcoord[,1] > -4) & (ca3$rowcoord[,1]) <= -2.5] <- 'P03'
+Phase[(ca3$rowcoord[,1] > -2.5) & (ca3$rowcoord[,1]) <= 0.6] <- 'P04'
+Phase[(ca3$rowcoord[,1] > 0.6) ] <- 'P05'
+
+Phase
 
 #create df of contexts, counts, mcds and phases
 unit <- MCDByUnit$MCDs$unit
@@ -545,18 +565,17 @@ p6 <- ggplot(CA_MCD_Phase1,aes(x=CA_MCD_Phase1$dim1Scores,y=CA_MCD_Phase1$blueMC
   geom_point(aes(colour=CA_MCD_Phase1$Phase),size=5)+
   #geom_text_repel(aes(label=CA_MCD_Phase1$unit), cex=6) +
   theme_classic()+
-  labs(title="West Cabin", x="Dimension 1", y="BLUE MCD")+
+  labs(title="East and West Cabin", x="Ware Dimension 1", y="BLUE MCD")+
   theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
         axis.text=element_text(size=rel(1.5)), legend.text=element_text(size=rel(1.75)),
         legend.title=element_text(size=rel(1.5)), legend.position="bottom")+
   scale_colour_manual(name="DAACS Phase",
-                      labels=c("P01", "P02", "P03"),
-                      values=c("skyblue", "blue", "darkblue"))
+                      labels=c("P01", "P02", "P03", "P04", "P05"),
+                      values=c("skyblue", "dodgerblue", "blue", "darkblue", "black"))
 p6
+
 #save the plot for website chronology page/presentations
-#ggsave("WestCabin_Figure4Dim1MCD.png", p4, width=10, height=7.5, dpi=300)
-#when you add labels back in 
-#ggsave("WestCabin_Figure5Dim1MCDlabels.png", p4, width=10, height=7.5, dpi=300)
+#ggsave("CAwares_EastWest_D1BMCD_phasecolor.png", p6, width=10, height=7.5, dpi=300)
 
 #Once phases are assigned we need to calculate MCDs and TPQs by phase 
 #Add phase assignments to ware counts by unit
@@ -564,8 +583,9 @@ WareByPhase1 <- merge(WareByUnitT2Sorted, CA_MCD_Phase1, by.x='unit', by.y='unit
 #aggregate counts for ware type by phase
 WareByPhase <- ddply(WareByPhase1, "Phase", numcolwise(sum))
 #Check ware by phase
-WareByPhase <- WareByPhase[,-c(15:20)]
+WareByPhase <- WareByPhase[,-c(17:21)]
 
+write.csv(WareByPhase1, file='WarebyPhase_EastWest.csv')
 
 #alter EstimateMCDandTPQ function to have phaseData as input for unitData
 EstimateMCDandTPQ<- function(phaseData,typeData){
@@ -637,9 +657,122 @@ MCDByPhase<-EstimateMCDandTPQ(WareByPhase,MCDTypeTable)
 # let's see what it looks like
 MCDByPhase
 
+results <- MCDByPhase$MCDs
+
 #check sums of counts for phases
 ddply(CA_MCD_Phase1, .(Phase), summarise, Count=sum(count))
 
 #Export data
-write.csv(CA_MCD_Phase1, file='CA_MCDTPQ_Phase.csv')
+write.csv(CA_MCD_Phase1, file='CAMCDTPQ_Wares.csv')
+
+####Section 8: Evaluate goodness of fit to seriation model ########################################
+
+#Define three functions based on Marko Procic 2013 
+#Written by Fraser D. Neiman 11.23.2017
+
+# define a function to compute the number of Modes and the "Seriation Index"
+  # arguments:  rowscores - a vector of scores to order the rows (e.g. CA scores, MCDs)
+  #             dataMatrix - a matrix: counts of types(cols) in assemblages (rows).
+  # values:     nModes - the number of modes in the preder specified by the rowScores vector
+  #             sIndex - the Seriation Index (coefficient)
+fsStats <- function(rowScores, dataMatrix){
+  sortedMatrix <- dataMatrix[order(rowScores),]
+  props <- prop.table(sortedMatrix,1)
+  nRows <- nrow(props)
+  nCols <- ncol(props)
+  modeMat <- matrix(0, nRows,nCols) 
+  for (i in 2:(nRows-1)) {
+    modeMat[i,] <- (props[i-1,] < props[i,]) & (props[i,] > props[i+1,])
+  }
+  modeMat[1,] <- (props[1,] > props[2,]) 
+  modeMat[nRows,] <- (props[nRows,] > props[nRows-1,]) 
+  nModes <- sum(modeMat)
+  maxModes <- ifelse(nRows %% 2 == 0, (nRows*nCols)/2, (nRows*(nCols+1))/2)
+  sIndex <- (maxModes -nModes)/ (maxModes - nCols)
+  list(nModes=nModes, sIndex=sIndex)
+}
+
+# Define a function to compute the number of Modes and the "Seriation Index"
+  # for a given number of random permutations of a data matrix.  
+  # arguments:  nPermutations - number of permutations desired  
+  #             dataMatrix - a matrix: counts of types(cols) in assemblages (rows) 
+fsStatsMC <- function(nPermutations, dataMatrix){
+  props <- prop.table(dataMatrix,1)
+  nRows <- nrow(props)
+  nCols <- ncol(props)
+  mcValues <- matrix(0,nPermutations,2)
+  colnames(mcValues) <- c('nModes', 'sIndex')
+  for(k in 1:nPermutations){
+    props <- props[order(runif(nRows)),]
+    modeMat <- matrix(0, nRows,nCols)
+    for (i in 2:(nRows-1)) {
+      modeMat[i,] <- (props[i-1,] < props[i,]) & (props[i,] > props[i+1,])
+    }
+    modeMat[1,] <- (props[1,] > props[2,]) 
+    modeMat[nRows,] <- (props[nRows,] > props[nRows-1,]) 
+    nModes <- sum(modeMat)
+    maxModes <- ifelse(nRows %% 2 == 0, (nRows*nCols)/2, (nRows*(nCols+1))/2)
+    sIndex <- (maxModes -nModes)/ (maxModes - nCols)
+    mcValues[k,] <- c(nModes, sIndex)
+  }
+  mcValues
+}
+
+# define a function to compute MC probabilities, zscores, and z-score probabilities, based on
+  # the results from fsStats() and fsStatsMC()
+  # arguments:    StatsMC - the matrix of Monte Carlo values from fsStatsMC()
+  #               Stats  - the stats for the seriation solution from fsStats()
+  # empirical probabilty from the ECDF of the sIndex values
+fsAnalyze <- function(stats, statsMC ){
+    probMC_sIndex <- 1- (ecdf(statsMC[,2])(stats$sIndex))   
+  # z score for the Seriation Index. This is probably a good measure to compare 
+  # seriations on different datasets
+  z_sIndex <- (stats$sIndex - mean(statsMC[,2]))/ sd(statsMC[,2])
+  # prob(z >= z_sIndex)
+  prob_z_sIndex <- 1-pnorm(z_sIndex)
+  list('sIndex'= stats$sIndex,
+       'probMC_sIndex' = probMC_sIndex, 
+       'z_sIndex' = z_sIndex, 
+       'prob_z_sIndex' = prob_z_sIndex )
+}
+
+
+# now we call the three functions and do a couple of plots
+#First run Dim 1 scores and ware type counts data matrix
+
+EWStats_Dim1 <- fsStats(ca3$rowcoord[,1], Matx)
+EWStats_Dim1
+
+# Run results for random permutations of a data matrix
+EWMC  <- fsStatsMC(1000, Matx)
+
+#Compare results of Dim 1 values and permutations
+fsAnalyze (EWStats_Dim1, EWMC)
+
+#Second run MCDs and ware type counts data matrix
+EWStats_MCD <- fsStats(CA_MCD$blueMCD, Matx)
+EWStats_MCD
+
+#Compare results of blue MCD values and permutations
+fsAnalyze (EWStats_MCD, EWMC)
+
+
+# # first the Monte Carlo values for the number of modes to makes sure the result match 
+# # Porcic's figure 5. It does!
+# 
+hist(EWMC[,1], 20, col='grey',
+      xlab= 'Number of Modes', ylab = 'Frequency')
+ abline(v=EWStats_Dim1$nModes, col='blue', lwd=4)
+ abline(v=EWStats_MCD$nModes, col='yellow', lwd=4)
+ 
+# 
+# 
+# # now do the analogous plots for the Seriaton Index values
+# 
+# hist(EWMC[,2], 20, col='grey',
+#      xlab= 'Seriation Index', ylab = 'Frequency')
+#      #xlim= c(0,1))
+# abline(v=EWStats$sIndex, col='blue', lwd=4)
+
+
 
