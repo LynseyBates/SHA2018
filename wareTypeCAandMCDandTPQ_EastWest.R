@@ -10,6 +10,8 @@ setwd("P:/")
 
 #load the library
 require(RPostgreSQL)
+library(plyr)
+library(dplyr)
 
 # tell DBI which driver to use
 pgSQL <- dbDriver("PostgreSQL")
@@ -170,8 +172,6 @@ wareTypeDataY$DAACSStratigraphicGroup[is.na(wareTypeDataY$DAACSStratigraphicGrou
 wareTypeDataY$FeatureNumber[is.na(wareTypeDataY$FeatureNumber)] <- ''
 wareTypeDataY$QuadratID[is.na(wareTypeDataY$QuadratID)] <- ''
 
-require(dplyr)
-
 wareTypeData1 <- mutate(wareTypeDataY, unit=ifelse((QuadratID == '' & FeatureNumber == '' & DAACSStratigraphicGroup == ''),
                                     paste(ProjectID,Context),
                                     ifelse((QuadratID != '' & FeatureNumber == '' & DAACSStratigraphicGroup == ''),
@@ -243,8 +243,9 @@ WareByUnitT1 <-WareByUnitT[WareByUnitTTotals>5,]
 
 
 #Remove any outliers
-#WareByUnitTout <-subset(WareByUnitT1, !WareByUnitT1$unit %in% c('1410_662A', '1410_SG05'))
-WareByUnitTout <-subset(WareByUnitT1, !WareByUnitT1$unit %in% c('EC_662A'))
+WareByUnitTout <-subset(WareByUnitT1, !WareByUnitT1$unit %in% c('1410 97-01-21 F 662A',
+                                                                '1412 Q S1020E40 SG02',
+                                                                '1412 98-01-072 F 769'))
 
 #Ok now let's get rid of all the columns (ware types) where totals < 0
 #WareByUnitT2<-WareByUnitT1[, colSums(WareByUnitT1 != 0) > 0]
@@ -360,7 +361,7 @@ MatProp<-Mat/rSums
 
 # do the plot
 #(package for seriation)
-library(plotrix) 
+library(plotrix)
 battleship.plot(MatProp,
                 mar=c(2,5,5,1),
                 #main = 'Seriation',
@@ -394,20 +395,20 @@ colscores <- data.frame(ca3$colcoord[,1], ca3$colcoord[,2])
 colnames(colscores) <- c("Dim1", "Dim2")
 
 #Create plot: Dim 1 and Dim 2 context scores
-# require(ggplot2)
-# library(ggrepel)
-# p1 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=rowscores$Dim2))+
-#   geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
-#  #geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
-#   xlim(-7,3)+
-#  geom_text_repel(aes(label=rownames(rowscores)), cex=5, segment.alpha=0.2) +
-#   theme_classic()+
-#   labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
-#   theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-#         axis.text=element_text(size=rel(1.5)))
-# p1
-# #save the plot for website chronology page/presentations
-# #ggsave("WCAwares_EastWest_Dims12.png", p1, width=10, height=7.5, dpi=300)
+require(ggplot2)
+library(ggrepel)
+p1 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=rowscores$Dim2))+
+  geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
+ #geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
+#  xlim(-7,3)+
+ #geom_text_repel(aes(label=rownames(rowscores)), cex=5, segment.alpha=0.2) +
+  theme_classic()+
+  labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
+  theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+        axis.text=element_text(size=rel(1.5)))
+p1
+#save the plot for website chronology page/presentations
+ggsave("CAwares_EastWest_Dims12.png", p1, width=10, height=7.5, dpi=300)
 # 
 # 
 # # plot the row scores on dim1 and dim2
@@ -416,16 +417,16 @@ colnames(colscores) <- c("Dim1", "Dim2")
 # #text(ca3$rowcoord[,1],ca3$rowcoord[,2],rownames(ca3$rowcoord),
 #  #    pos=4, cex=1.0, col="black", cex.lab=1.5)
 # 
-# p2 <- ggplot(colscores, aes(x=colscores$Dim1,y=colscores$Dim2))+
-#   geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
-#   #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
-#   geom_text_repel(aes(label=rownames(colscores)), cex=6) +
-#   theme_classic()+
-#   labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
-#   theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-#         axis.text=element_text(size=rel(1.5)))
-# p2
-# #ggsave("CAwares_EastWest_DimWares.png", p2, width=10, height=7.5, dpi=300)
+p2 <- ggplot(colscores, aes(x=colscores$Dim1,y=colscores$Dim2))+
+  geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
+  #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
+  geom_text_repel(aes(label=rownames(colscores)), cex=6) +
+  theme_classic()+
+  labs(title="East and West Cabin", x="Dimension 1", y="Dimension 2")+
+  theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+        axis.text=element_text(size=rel(1.5)))
+p2
+ggsave("CAwares_EastWest_DimWares.png", p2, width=10, height=7.5, dpi=300)
 # 
 # # plot the col scores on dim1 and dim2, which types are important in which regions of the plot
 # #plot(ca3$colcoord[,1],ca3$colcoord[,2],pch=21, bg="black",cex=1.25,
@@ -434,17 +435,17 @@ colnames(colscores) <- c("Dim1", "Dim2")
 #  #    pos=4 ,cex=1.25, col="black")
 # 
 # # CA Dim 1 vs. MCDs
-# p3 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=MCDByUnit$MCDs$blueMCD))+
-#   geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
-#  geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
-#  #geom_text_repel(aes(label=rownames(rowscores)), cex=6) +
-#   theme_classic()+
-#   labs(title="East and West Cabin", x="Dimension 1", y="BLUE MCD")+
-#   theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-#         axis.text=element_text(size=rel(1.5)))
-# p3
+p3 <- ggplot(rowscores, aes(x=rowscores$Dim1,y=MCDByUnit$MCDs$blueMCD))+
+  geom_point(shape=21, size=5, colour="black", fill="cornflower blue")+
+ #geom_text(aes(label=rownames(rowscores)),vjust=-.6, hjust=-.1, cex=5)+
+ #geom_text_repel(aes(label=rownames(rowscores)), cex=6) +
+  theme_classic()+
+  labs(title="East and West Cabin", x="Dimension 1", y="BLUE MCD")+
+  theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+        axis.text=element_text(size=rel(1.5)))
+p3
 # cor.test(ca3$rowcoord[,1],MCDByUnit$MCDs$blueMCD, method="kendall")
-# #ggsave("CAwares_EastWest_Dim1MCD.png", p3, width=10, height=7.5, dpi=300)
+ggsave("CAwares_EastWest_Dim1MCD.png", p3, width=10, height=7.5, dpi=300)
 # 
 # #OLD DIM 1 BLUE MCD PLOT
 # #plot(ca3$rowcoord[,1], MCDByUnit$MCDs$blueMCD, pch=21, bg="black",cex=1.25,
@@ -470,25 +471,25 @@ CA_MCD<-data.frame(unit, dim1Scores,dim2Scores,MCD,blueMCD, count, stringsAsFact
 CA_MCD$Cabin <- CA_MCD$unit
 
 #Assign cabin name based on 'unit' character string
-CA_MCD$Cabin[grepl("^.*EC_", CA_MCD$Cabin)] <- 'EC'
-CA_MCD$Cabin[grepl("^.*WC_", CA_MCD$Cabin)] <- 'WC'
+CA_MCD$Cabin[grepl("^.*1410", CA_MCD$Cabin)] <- 'EC'
+CA_MCD$Cabin[grepl("^.*1412", CA_MCD$Cabin)] <- 'WC'
 
 
 # #Dim 1 bluemcd with colors by cabin
-# color <- ggplot(rowscores, aes(x=CA_MCD$dim1Scores,y=CA_MCD$blueMCD))+
-#   geom_point(aes(colour=CA_MCD$Cabin),size=5)+
-#   #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
-#   geom_text_repel(aes(label=rownames(rowscores)), cex=5, segment.alpha=0.2) +
-#   theme_classic()+
-#   labs(title="East and West", x="Dimension 1", y="BLUE MCD")+
-#   theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-#         axis.text=element_text(size=rel(1.5)), legend.text=element_text(size=rel(1.75)),
-#         legend.title=element_text(size=rel(1.5)), legend.position="bottom")+
-#   scale_colour_manual(name="Cabin",
-#                       labels=c("East", "West"),
-#                       values=c("darkgoldenrod1", "aquamarine4"))
-# color
-# ggsave("CAwares_EastWest_D1BMCD_labels.png", color, width=10, height=7.5, dpi=300)
+color <- ggplot(rowscores, aes(x=CA_MCD$dim1Scores,y=CA_MCD$blueMCD))+
+  geom_point(aes(colour=CA_MCD$Cabin),size=5)+
+  #geom_text(aes(label=CA_MCD_Phase1$unit),vjust=-.6, cex=5)+
+  #geom_text_repel(aes(label=rownames(rowscores)), cex=5, segment.alpha=0.2) +
+  theme_classic()+
+  labs(title="East and West", x="Dimension 1", y="BLUE MCD")+
+  theme(plot.title=element_text(size=rel(2), hjust=0.5),axis.title=element_text(size=rel(1.75)),
+        axis.text=element_text(size=rel(1.5)), legend.text=element_text(size=rel(1.75)),
+        legend.title=element_text(size=rel(1.5)), legend.position="bottom")+
+  scale_colour_manual(name="Cabin",
+                      labels=c("East", "West"),
+                      values=c("darkgoldenrod1", "aquamarine4"))
+color
+ggsave("CAwares_EastWest_D1BMCD_color.png", color, width=10, height=7.5, dpi=300)
 # 
 # #Create weighted histogram for phasing
 # #library(plotrix)
@@ -504,12 +505,12 @@ p5 <- ggplot(CA_MCD, aes(x=CA_MCD$dim1Scores, weight=CA_MCD$count/sum(CA_MCD$cou
   theme_classic()+
   labs(title="East and West Cabin", x="Dimension 1", y="Density")+
   theme(plot.title=element_text(size=rel(2.25), hjust=0.5),axis.title=element_text(size=rel(1.75)),
-        axis.text=element_text(size=rel(1.5)))#+
-#geom_density(fill=NA)
+        axis.text=element_text(size=rel(1.5)))
+p5 + geom_density(fill=NA)
 p5a <- p5 + geom_vline(xintercept=c(-5.8, -4, -2.5, 0.6))
 p5a
 ggsave("CAwares_EastWest_Hist.png", p5, width=10, height=7.5, dpi=300)
-ggsave("CAwares_EastWest_Hist_lines.png", p5a, width=10, height=7.5, dpi=300)
+#ggsave("CAwares_EastWest_Hist_lines.png", p5a, width=10, height=7.5, dpi=300)
 # 
 # #Lines step adds density curve to weighted histogram
 # #hist(rep(ca3$rowcoord[,1], MCDByUnit$MCDs$Count),col='tan',border='grey', breaks=seq(-7.5,2.5,.1),
